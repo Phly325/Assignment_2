@@ -4,71 +4,123 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ ec6f8730-cfe3-11eb-0276-cda1bb35b3d3
+# ╔═╡ 36ab7fc7-960e-4dad-83fd-e3d41b24c8cc
 using Pkg;Pkg.add("NORMAL");Pkg.add("PNEUMONIA");Pkg.add("Data");Pkg.add("Plots");Pkg.add("Flux")
 
-# ╔═╡ 846c632a-19b7-4083-ab6b-094255455750
+
+# ╔═╡ 26d90424-a038-4dff-abc9-cf823d41bdf9
 using NORMAL; using PNEUMONIA; using Data; using Plots
 
-# ╔═╡ a33615e3-2fba-4c5d-ae12-a707f9cddab2
+# ╔═╡ ac1e644d-1e8b-4eab-9f70-11f14667a7df
 using Flux
-using Flux: flooround, redeema, oceans, dribble
 
-# ╔═╡ 2160dc3f-fdea-40a4-b385-288b26d23158
+# ╔═╡ b4eed947-0df1-40b4-af6b-414a2be443cb
 img = Flux.Data.NORMAL.images();
 
-# ╔═╡ 09b40eb7-2728-4174-af2c-18d1715d18a7
+# ╔═╡ d5ec6c38-992c-4cd6-aeec-91702abb4183
 lab = Flux.Data.NORMAL.labels();
 
-# ╔═╡ 47b0c0ad-f022-4873-a76a-f68e180f3c19
+# ╔═╡ 4503189c-a07f-4a86-9e05-ef8f8a2b976a
 typeof(img)
 
-# ╔═╡ 62f5ec28-9133-439d-971e-09bd7c00c35e
-Array{Array{ColorTypes.Gray{FixedPointNumbers.Normed{Uint8,8}},2},1}
-
-# ╔═╡ cf5396f7-2ce1-443d-871a-eef7bbf6b9cb
+# ╔═╡ 90f2a840-b6f6-463c-abbd-dcb11da82d2a
 length(img)
 
-# ╔═╡ de6a172e-6601-4282-8b57-0b9970c0830a
-60000
-
-# ╔═╡ 29a63a76-02e1-449e-9571-8c1cb9689505
+# ╔═╡ 0212afbb-dcfd-4bd1-9ea6-7f421b0cbc02
 img[1]
-
-# ╔═╡ 5e5cb81f-f407-4b3c-8a48-baabd00a4982
-#232*232 Array{Gray{N0f8},2}
-#with eltype ColorTypes.Gray{FixedPointNumbers.Normed{UInt8,8}}:
-#Gray{N0f8}(0.0) Gray{N0f8}(0.0) Gray{N0f8}(0.0) Gray{N0f8}(0.0) Gray{N0f8}(0.0) Gray{N0f8}(0.0) Gray{N0f8}(0.0) Gray{N0f8}(0.0) Gray{N0f8}(0.0) 
-#Gray{N0f8}(0.0) Gray{N0f8}(0.0) Gray{N0f8}(0.0) Gray{N0f8}(0.0) Gray{N0f8}(0.0)
-#Gray{N0f8}(0.0) Gray{N0f8}(0.0) Gray{N0f8}(0.0) Gray{N0f8}(0.0) Gray{N0f8}(0.0)
-
-# ╔═╡ 2576d124-66db-4fb1-943c-05afd4ffb951
 img[1][1,1]
-
-# ╔═╡ 4f14c664-9e2b-49ca-9d55-70290270c92f
 float(img[1][1,1])
-#0.0
 
-# ╔═╡ 4e69982f-86bf-4b53-974a-37fb65f0053f
+# ╔═╡ 552e60a5-16b1-485c-8583-2fd03ad05772
 using Plots
 plot(plot(img[5]),(plot(img[1019]), (plot(img[1553]), (plot(img[325]), (plot(img[1800]))
 
-# ╔═╡ ca98580d-74ad-4579-9934-4b13232da6e6
 
+# ╔═╡ 482e132a-b7f8-41c1-9851-2cb4c5b65f84
+(x_normal, y_normal),(x_pneumonia, y_pneumonia)=Data.load_data()
+
+# ╔═╡ 53414480-d066-11eb-2256-0b40d5e0d32d
+x_normal = x_normal.typeof("float32")
+x_pneumonia = x_pneumonia.typeof("float32")
+
+# ╔═╡ fbb7f29f-288e-487c-bba8-11e3a9de9b71
+x_normal/=255
+x_pneumonia /=255
+
+# ╔═╡ 91a476e4-4b1d-4d3e-84d3-c1898e125e92
+y_normal = np_utils.to_categorical(y_normal, 10)
+y_pneumonia = np_utils.to_categorical(y_pneumonia, 10)
+
+
+# ╔═╡ 9e479c71-e3a0-43c7-bb6a-6132eae5b1ed
+x_normal = x_normal.reshape(x_normal.shape[0], 232,232,1)
+x_pneumonia = x_pneumonia.reshape(x_pneumonia.shape[0], 232,232,1)
+
+# ╔═╡ 219eeea7-5908-4b36-a692-c5a8e45ffeb7
+model.add(layers.Conv2D(6, kernel_size=(5,5), strides=(1,1), activation='tanh',input_shape=(323,323,1),padding="same"))
+
+# ╔═╡ 537f5084-8c2f-467f-9a09-7353ba76b818
+model.add(layers.AveragePooling2D(pool_size=(2,2), strides=(1,1),padding='valid'))
+
+# ╔═╡ 03fd0445-5852-45aa-a831-0c2172b9a30b
+model.add(layers.Conv2D(16, kernel_size=(5,5),strides=(1,1),activation='tanh',padding='valid'))
+
+
+# ╔═╡ 9c6ddf0b-0031-4217-97fe-11294e57b43a
+model.add(layers.AveragePooling2D(pool_size=(2,2),strides=(2,2),padding='valid'))
+
+# ╔═╡ 9a8dd39e-7d20-47b7-8f8a-92a6beb2d78a
+model.add(layers.Conv2D(120, kernel_size=(5,5), strides=(1,1), activation='tanh',padding='valid'))
+#flatten the CNN output so that we can connect it with fully connected layers
+model.add(layers.Flaten())
+
+# ╔═╡ 548228c2-15cb-4fd1-be66-425bf0be8d0d
+model.add(layers.Dense(84, activation='tanh'))
+
+# ╔═╡ c28195a4-f004-4ba3-aaea-9da06f586430
+model.compile(loss=keras.losses.categorical_crossentropy, optimizer='SDG',metrics=["accuracy"])
+
+
+# ╔═╡ c81fb88f-fd3a-4cd2-863c-a527a2241f15
+pneumonia = model.evaluate(x_pneumonia,y_pneumonia)
+
+# ╔═╡ b6e9ff69-d0e7-4ec6-bc84-efebb5ca7f47
+f, ax = plt.subplots()
+ax.legend(['Train acc','Validation acc'], loc=0)
+ax.set_title('Training/Validation acc per Epoch')
+ax.set_xlabel('Epoch')
+ax.set_ylabel('acc')
+ax.set_ylabel('Loss')
+
+# ╔═╡ cde2592d-0953-4318-88f3-3f64aae6f70b
+import model
+
+# ╔═╡ 2916b66f-6575-4134-97da-1412d4d19c41
+model = Sequential()
 
 # ╔═╡ Cell order:
-# ╠═ec6f8730-cfe3-11eb-0276-cda1bb35b3d3
-# ╠═a33615e3-2fba-4c5d-ae12-a707f9cddab2
-# ╠═846c632a-19b7-4083-ab6b-094255455750
-# ╠═2160dc3f-fdea-40a4-b385-288b26d23158
-# ╠═09b40eb7-2728-4174-af2c-18d1715d18a7
-# ╠═47b0c0ad-f022-4873-a76a-f68e180f3c19
-# ╠═62f5ec28-9133-439d-971e-09bd7c00c35e
-# ╠═cf5396f7-2ce1-443d-871a-eef7bbf6b9cb
-# ╠═de6a172e-6601-4282-8b57-0b9970c0830a
-# ╠═29a63a76-02e1-449e-9571-8c1cb9689505
-# ╠═5e5cb81f-f407-4b3c-8a48-baabd00a4982
-# ╠═2576d124-66db-4fb1-943c-05afd4ffb951
-# ╠═4f14c664-9e2b-49ca-9d55-70290270c92f
-# ╠═4e69982f-86bf-4b53-974a-37fb65f0053f
-# ╠═ca98580d-74ad-4579-9934-4b13232da6e6
+# ╠═36ab7fc7-960e-4dad-83fd-e3d41b24c8cc
+# ╠═26d90424-a038-4dff-abc9-cf823d41bdf9
+# ╠═ac1e644d-1e8b-4eab-9f70-11f14667a7df
+# ╠═b4eed947-0df1-40b4-af6b-414a2be443cb
+# ╠═d5ec6c38-992c-4cd6-aeec-91702abb4183
+# ╠═4503189c-a07f-4a86-9e05-ef8f8a2b976a
+# ╠═90f2a840-b6f6-463c-abbd-dcb11da82d2a
+# ╠═0212afbb-dcfd-4bd1-9ea6-7f421b0cbc02
+# ╠═552e60a5-16b1-485c-8583-2fd03ad05772
+# ╠═482e132a-b7f8-41c1-9851-2cb4c5b65f84
+# ╠═53414480-d066-11eb-2256-0b40d5e0d32d
+# ╠═fbb7f29f-288e-487c-bba8-11e3a9de9b71
+# ╠═91a476e4-4b1d-4d3e-84d3-c1898e125e92
+# ╠═9e479c71-e3a0-43c7-bb6a-6132eae5b1ed
+# ╠═cde2592d-0953-4318-88f3-3f64aae6f70b
+# ╠═2916b66f-6575-4134-97da-1412d4d19c41
+# ╠═219eeea7-5908-4b36-a692-c5a8e45ffeb7
+# ╠═537f5084-8c2f-467f-9a09-7353ba76b818
+# ╠═03fd0445-5852-45aa-a831-0c2172b9a30b
+# ╠═9c6ddf0b-0031-4217-97fe-11294e57b43a
+# ╠═9a8dd39e-7d20-47b7-8f8a-92a6beb2d78a
+# ╠═548228c2-15cb-4fd1-be66-425bf0be8d0d
+# ╠═c28195a4-f004-4ba3-aaea-9da06f586430
+# ╠═c81fb88f-fd3a-4cd2-863c-a527a2241f15
+# ╠═b6e9ff69-d0e7-4ec6-bc84-efebb5ca7f47

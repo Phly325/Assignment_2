@@ -4,123 +4,173 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 36ab7fc7-960e-4dad-83fd-e3d41b24c8cc
-using Pkg;Pkg.add("NORMAL");Pkg.add("PNEUMONIA");Pkg.add("Data");Pkg.add("Plots");Pkg.add("Flux")
+# ╔═╡ 72fbc049-d390-49ad-862f-80ae510da7e5
+using Pkg;Pkg.add("NORMAL");Pkg.add("PNEUMONIA");Pkg.add("Dataset");Pkg.add("Plots");Pkg.add("Flux")
 
+# ╔═╡ 988b4606-c626-4c22-bc27-2d3b5d6a535e
+Pkg.add("GPUArrays")
 
-# ╔═╡ 26d90424-a038-4dff-abc9-cf823d41bdf9
-using NORMAL; using PNEUMONIA; using Data; using Plots
-
-# ╔═╡ ac1e644d-1e8b-4eab-9f70-11f14667a7df
+# ╔═╡ a1e3b8f3-5368-415a-bc17-7e03802a010f
 using Flux
 
-# ╔═╡ b4eed947-0df1-40b4-af6b-414a2be443cb
-img = Flux.Data.NORMAL.images();
+# ╔═╡ 90166fe6-351c-4638-befc-bfe1b353181d
+using Flux: onehotbatch, onecold, crossentropy, throttle
 
-# ╔═╡ d5ec6c38-992c-4cd6-aeec-91702abb4183
-lab = Flux.Data.NORMAL.labels();
+# ╔═╡ c80b3806-eea6-471e-aa09-874943fb3cce
+using partition
 
-# ╔═╡ 4503189c-a07f-4a86-9e05-ef8f8a2b976a
-typeof(img)
+# ╔═╡ b30423d7-5bf4-4c68-bc0e-96f3ea4bddea
+using Printf
 
-# ╔═╡ 90f2a840-b6f6-463c-abbd-dcb11da82d2a
-length(img)
+# ╔═╡ ba84e906-9031-4599-89df-8cbd3b62cc1d
+training_labels = Dataset.labels()
+training_images = load("C:\Users\ugulu\OneDrive\Documents\3rd YEAH!\AIG710S\Assignment_2\Dataset\training_set")
 
-# ╔═╡ 0212afbb-dcfd-4bd1-9ea6-7f421b0cbc02
-img[1]
-img[1][1,1]
-float(img[1][1,1])
+# ╔═╡ 1ea22d71-c44b-407e-8ca0-95ae5abe8df4
+training_images = load("C:\Users\ugulu\OneDrive\Documents\3rd YEAH!\AIG710S\Assignment_2\Dataset\training_set")(:test)
+training_labels = Dataset.labels()(:test)
+test_set = smallbatch(testing_images, test_labels, 1:length(testing_images))
 
-# ╔═╡ 552e60a5-16b1-485c-8583-2fd03ad05772
-using Plots
-plot(plot(img[5]),(plot(img[1019]), (plot(img[1553]), (plot(img[325]), (plot(img[1800]))
+# ╔═╡ 5525637a-cc77-4523-9d15-b72053211d62
+train_set[1][2][:,1]
 
+# ╔═╡ 8496b2f7-4b27-42dc-8d49-89e8a8f57116
+testing_set = gpu.(testing_set)
 
-# ╔═╡ 482e132a-b7f8-41c1-9851-2cb4c5b65f84
-(x_normal, y_normal),(x_pneumonia, y_pneumonia)=Data.load_data()
+# ╔═╡ 4e75b165-8ee4-4ffa-943d-a6d3f3981953
+typeof(training_set)
 
-# ╔═╡ 53414480-d066-11eb-2256-0b40d5e0d32d
-x_normal = x_normal.typeof("float32")
-x_pneumonia = x_pneumonia.typeof("float32")
+# ╔═╡ ba59cce3-e415-4c1c-90f4-a5f13c3a5269
+size(training_set[1][1])
 
-# ╔═╡ fbb7f29f-288e-487c-bba8-11e3a9de9b71
-x_normal/=255
-x_pneumonia /=255
+# ╔═╡ 853e5c45-f0a5-4b90-9cac-44699bb28706
+size(training_set[1][2])
 
-# ╔═╡ 91a476e4-4b1d-4d3e-84d3-c1898e125e92
-y_normal = np_utils.to_categorical(y_normal, 10)
-y_pneumonia = np_utils.to_categorical(y_pneumonia, 10)
+# ╔═╡ 377a27d9-3a48-4f9b-b693-1720e99059ec
+model(training_set[1][1])
 
+# ╔═╡ 5f65fe15-a5f8-4968-af3d-6577cb06a3dc
+function loss(x, y)
+    x_era = x .+ 0.1f0*gpu(randn(eltype(x), size(x)))
 
-# ╔═╡ 9e479c71-e3a0-43c7-bb6a-6132eae5b1ed
-x_normal = x_normal.reshape(x_normal.shape[0], 232,232,1)
-x_pneumonia = x_pneumonia.reshape(x_pneumonia.shape[0], 232,232,1)
+    y_omb = model(x_era)
+    return crossentropy(y_omb, y)
+end
 
-# ╔═╡ 219eeea7-5908-4b36-a692-c5a8e45ffeb7
-model.add(layers.Conv2D(6, kernel_size=(5,5), strides=(1,1), activation='tanh',input_shape=(323,323,1),padding="same"))
+# ╔═╡ fc870935-58d7-4045-9995-b099486545ee
+accuracy(x, y) = mean(onecold(model(x)) .== onecold(y))
 
-# ╔═╡ 537f5084-8c2f-467f-9a09-7353ba76b818
-model.add(layers.AveragePooling2D(pool_size=(2,2), strides=(1,1),padding='valid'))
+# ╔═╡ 4a7c0567-d601-4dd8-b82d-f47fb24c1481
+opt = ADAM(0.001)
 
-# ╔═╡ 03fd0445-5852-45aa-a831-0c2172b9a30b
-model.add(layers.Conv2D(16, kernel_size=(5,5),strides=(1,1),activation='tanh',padding='valid'))
+# ╔═╡ c681868f-aedc-4ddc-961d-b20656f1ea00
+test_image = image.load_img("C:\Users\ugulu\OneDrive\Documents\3rd YEAH!\AIG710S\Assignment_2\Dataset\training_set\PNEUMONIA\PNEUMONIA_902.png", target_size = (232, 232))
+test_image = image.img_to_array(test_image)
+result = classifier.predict(test_image)
+training_set.class_indices
+if result[0][0] == 1:
+    prediction = "NORMAL"
+else:
+    prediction = "PNUEMONIA"
 
+# ╔═╡ 1ce582d6-3911-4cde-83ee-ba0a02c05c7b
+for epoch_idx in 1:100
+    global last_chance
+    
+    Flux.train!(loss, params(model), training_set, opt)
 
-# ╔═╡ 9c6ddf0b-0031-4217-97fe-11294e57b43a
-model.add(layers.AveragePooling2D(pool_size=(2,2),strides=(2,2),padding='valid'))
+    acc = accuracy(testing_set...)
+    @info(@printf("[%d]: Test accuracy: %.4f", epoch_idx, acc))
+    
+    if acc >= 0.999
+        @info(" -> Accuracy of 99.9% reached")
+        break
+    end
+	
+    if epoch_idx - last_chance >= 5 && opt.eta > 1e-6
+        opt.eta /= 10.0
+        @warn(" -> Haven't improved in a while, drop the learning rate to $(opt.eta)!")
 
-# ╔═╡ 9a8dd39e-7d20-47b7-8f8a-92a6beb2d78a
-model.add(layers.Conv2D(120, kernel_size=(5,5), strides=(1,1), activation='tanh',padding='valid'))
-#flatten the CNN output so that we can connect it with fully connected layers
-model.add(layers.Flaten())
+        # After dropping learning rate, give it a few epochs to improve
+        last_chance = epoch_idx
+    end
 
-# ╔═╡ 548228c2-15cb-4fd1-be66-425bf0be8d0d
-model.add(layers.Dense(84, activation='tanh'))
+    if epoch_idx - last_chance >= 10
+        @warn(" -> This is Converged.")
+        break
+    end
+end
 
-# ╔═╡ c28195a4-f004-4ba3-aaea-9da06f586430
-model.compile(loss=keras.losses.categorical_crossentropy, optimizer='SDG',metrics=["accuracy"])
+# ╔═╡ 1c58c7ea-bf7c-48bd-aefb-3ba18fc5d388
+training_set = gpu.(training_set)
 
+# ╔═╡ b2a81949-a16e-40bc-bb22-547b308dea8c
+begin
+	model = Chain(
+	    Conv((3, 3), 1=>16, pad=(1,1), relu),
+	    x -> maxpool(x, (2,2)),
+		
+	    Conv((3, 3), 16=>32, pad=(1,1), relu),
+	    x -> maxpool(x, (2,2)),
+	
+	    Conv((3, 3), 32=>32, pad=(1,1), relu),
+	    x -> maxpool(x, (2,2)),
+		
+	    x -> reshape(x, :, size(x, 4)),
+	    Dense(288, 10),
+	
+	    softmax,
+	)
+end
 
-# ╔═╡ c81fb88f-fd3a-4cd2-863c-a527a2241f15
-pneumonia = model.evaluate(x_pneumonia,y_pneumonia)
+# ╔═╡ 2d358470-5c7b-4f65-a975-b11b127d7a75
+last_chance = 0
 
-# ╔═╡ b6e9ff69-d0e7-4ec6-bc84-efebb5ca7f47
-f, ax = plt.subplots()
-ax.legend(['Train acc','Validation acc'], loc=0)
-ax.set_title('Training/Validation acc per Epoch')
-ax.set_xlabel('Epoch')
-ax.set_ylabel('acc')
-ax.set_ylabel('Loss')
+# ╔═╡ 401cbe2d-5a6b-4234-8b64-26572c690c3d
+model = gpu(model)
 
-# ╔═╡ cde2592d-0953-4318-88f3-3f64aae6f70b
-import model
+# ╔═╡ c99fa82d-8ab4-48e0-960b-feafb34bf8dd
+begin
+	function smallbatch(X, Y, idxs)
+	    X_batch = Array{Float32}(undef, size(X[1])..., 1, length(idxs))
+	    for i in 1:length(idxs)
+	        X_batch[:, :, :, i] = Float32.(X[idxs[i]])
+	    end
+	    Y_batch = onehotbatch(Y[idxs], 0:9)
+	    return (X_batch, Y_batch)
+	end
+	batch_size = 128
+	sb_idxs = partition(1:length(training_images), batch_size)
+	training_set = [smallbatch(training_images, training_labels, i) for i in sb_idxs]
+	
+end
 
-# ╔═╡ 2916b66f-6575-4134-97da-1412d4d19c41
-model = Sequential()
+# ╔═╡ 009bdb80-6eba-4d4b-a99d-80a5a98efb9a
+using training_set; testing_set; NORMAL; PNEUMONIA; Dataset; Plots; gpu
 
 # ╔═╡ Cell order:
-# ╠═36ab7fc7-960e-4dad-83fd-e3d41b24c8cc
-# ╠═26d90424-a038-4dff-abc9-cf823d41bdf9
-# ╠═ac1e644d-1e8b-4eab-9f70-11f14667a7df
-# ╠═b4eed947-0df1-40b4-af6b-414a2be443cb
-# ╠═d5ec6c38-992c-4cd6-aeec-91702abb4183
-# ╠═4503189c-a07f-4a86-9e05-ef8f8a2b976a
-# ╠═90f2a840-b6f6-463c-abbd-dcb11da82d2a
-# ╠═0212afbb-dcfd-4bd1-9ea6-7f421b0cbc02
-# ╠═552e60a5-16b1-485c-8583-2fd03ad05772
-# ╠═482e132a-b7f8-41c1-9851-2cb4c5b65f84
-# ╠═53414480-d066-11eb-2256-0b40d5e0d32d
-# ╠═fbb7f29f-288e-487c-bba8-11e3a9de9b71
-# ╠═91a476e4-4b1d-4d3e-84d3-c1898e125e92
-# ╠═9e479c71-e3a0-43c7-bb6a-6132eae5b1ed
-# ╠═cde2592d-0953-4318-88f3-3f64aae6f70b
-# ╠═2916b66f-6575-4134-97da-1412d4d19c41
-# ╠═219eeea7-5908-4b36-a692-c5a8e45ffeb7
-# ╠═537f5084-8c2f-467f-9a09-7353ba76b818
-# ╠═03fd0445-5852-45aa-a831-0c2172b9a30b
-# ╠═9c6ddf0b-0031-4217-97fe-11294e57b43a
-# ╠═9a8dd39e-7d20-47b7-8f8a-92a6beb2d78a
-# ╠═548228c2-15cb-4fd1-be66-425bf0be8d0d
-# ╠═c28195a4-f004-4ba3-aaea-9da06f586430
-# ╠═c81fb88f-fd3a-4cd2-863c-a527a2241f15
-# ╠═b6e9ff69-d0e7-4ec6-bc84-efebb5ca7f47
+# ╠═72fbc049-d390-49ad-862f-80ae510da7e5
+# ╠═988b4606-c626-4c22-bc27-2d3b5d6a535e
+# ╠═009bdb80-6eba-4d4b-a99d-80a5a98efb9a
+# ╠═a1e3b8f3-5368-415a-bc17-7e03802a010f
+# ╠═90166fe6-351c-4638-befc-bfe1b353181d
+# ╠═c80b3806-eea6-471e-aa09-874943fb3cce
+# ╠═b30423d7-5bf4-4c68-bc0e-96f3ea4bddea
+# ╠═ba84e906-9031-4599-89df-8cbd3b62cc1d
+# ╠═c99fa82d-8ab4-48e0-960b-feafb34bf8dd
+# ╠═1ea22d71-c44b-407e-8ca0-95ae5abe8df4
+# ╠═4e75b165-8ee4-4ffa-943d-a6d3f3981953
+# ╠═ba59cce3-e415-4c1c-90f4-a5f13c3a5269
+# ╠═853e5c45-f0a5-4b90-9cac-44699bb28706
+# ╠═5525637a-cc77-4523-9d15-b72053211d62
+# ╠═b2a81949-a16e-40bc-bb22-547b308dea8c
+# ╠═1c58c7ea-bf7c-48bd-aefb-3ba18fc5d388
+# ╠═8496b2f7-4b27-42dc-8d49-89e8a8f57116
+# ╠═401cbe2d-5a6b-4234-8b64-26572c690c3d
+# ╠═377a27d9-3a48-4f9b-b693-1720e99059ec
+# ╠═5f65fe15-a5f8-4968-af3d-6577cb06a3dc
+# ╠═fc870935-58d7-4045-9995-b099486545ee
+# ╠═4a7c0567-d601-4dd8-b82d-f47fb24c1481
+# ╠═2d358470-5c7b-4f65-a975-b11b127d7a75
+# ╠═1ce582d6-3911-4cde-83ee-ba0a02c05c7b
+# ╠═c681868f-aedc-4ddc-961d-b20656f1ea00
